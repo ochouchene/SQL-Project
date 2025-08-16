@@ -1,0 +1,137 @@
+/*==============================================================*/
+SELECT
+    EMPLOYEE_int AS EmployeeNumber,
+    FIRST_NAME,
+    LAST_NAME,
+    DATEDIFF(YEAR, BIRTH_DATE, GETDATE()) AS Age,
+    DATEDIFF(YEAR, HIRE_DATE, GETDATE()) AS Seniority
+FROM EMPLOYEES
+WHERE (SALARY + ISNULL(COMMISSION, 0)) >= 8000
+ORDER BY Seniority DESC;
+/*==============================================================*/
+SELECT
+    PRODUCT_REF,
+    PRODUCT_NAME,
+    SUPPLIER_int,
+    UNITS_ON_ORDER,
+    UNIT_PRICE
+FROM PRODUCTS
+WHERE
+    QUANTITY LIKE '%bottle%'                        -- C1: packaged in bottles
+    AND UPPER(SUBSTRING(PRODUCT_NAME, 3, 1)) = 'T'  -- C2: third character is 't' or 'T'
+    AND SUPPLIER_int IN (1, 2, 3)                   -- C3: supplied by suppliers 1,2,3
+    AND UNIT_PRICE BETWEEN 70 AND 200               -- C4: unit price range
+    AND UNITS_ON_ORDER IS NOT NULL;                 -- C5: units ordered specified
+
+SELECT * FROM PRODUCTS WHERE QUANTITY LIKE '%bottl%';
+
+SELECT * FROM PRODUCTS WHERE UPPER(SUBSTRING(PRODUCT_NAME,3,1)) = 'T';
+
+SELECT * FROM PRODUCTS WHERE SUPPLIER_int IN (1,2,3);
+
+SELECT * FROM PRODUCTS WHERE UNIT_PRICE BETWEEN 70 AND 200;
+
+SELECT * FROM PRODUCTS WHERE UNITS_ON_ORDER IS NOT NULL;
+
+   /*==============================================================*/
+SELECT *
+FROM CUSTOMERS
+WHERE COUNTRY = (SELECT COUNTRY FROM SUPPLIERS WHERE SUPPLIER_int = 1)
+  AND CITY = (SELECT CITY FROM SUPPLIERS WHERE SUPPLIER_int = 1)
+  AND RIGHT(POSTAL_CODE, 3) = (SELECT RIGHT(POSTAL_CODE, 3) FROM SUPPLIERS WHERE SUPPLIER_int = 1);
+   /*==============================================================*/
+SELECT* from ORDERS
+
+SELECT 
+    O.ORDER_int,
+    SUM(OD.UNIT_PRICE * OD.QUANTITY) AS Total_Amount,
+    CASE
+        WHEN SUM(OD.UNIT_PRICE * OD.QUANTITY) BETWEEN 0 AND 2000 THEN 0
+        WHEN SUM(OD.UNIT_PRICE * OD.QUANTITY) BETWEEN 2001 AND 10000 THEN 5
+        WHEN SUM(OD.UNIT_PRICE * OD.QUANTITY) BETWEEN 10001 AND 40000 THEN 10
+        WHEN SUM(OD.UNIT_PRICE * OD.QUANTITY) BETWEEN 40001 AND 80000 THEN 15
+        ELSE 20
+    END AS New_Discount_Rate,
+    CASE
+        WHEN O.ORDER_int BETWEEN 10000 AND 10999 THEN 'apply old discount rate'
+        ELSE 'apply new discount rate'
+    END AS Discount_Rate_Note
+FROM ORDERS O
+JOIN ORDER_DETAILS OD
+    ON O.ORDER_int = OD.ORDER_int  -- Make sure ORDER_DETAILS uses ORDER_int, not ORDER_NUMBER
+WHERE O.ORDER_int BETWEEN 10998 AND 11003
+GROUP BY O.ORDER_int
+ORDER BY O.ORDER_int;
+
+   /*==============================================================*/
+   
+SELECT DISTINCT s.SUPPLIER_int AS SupplierNumber,
+                s.COMPANY AS Company,
+                s.ADDRESS AS Address,
+                s.PHONE AS Phone
+FROM SUPPLIERS s
+JOIN PRODUCTS p ON s.SUPPLIER_int = p.SUPPLIER_int
+JOIN CATEGORIES c ON p.CATEGORY_CODE = c.CATEGORY_CODE
+WHERE c.CATEGORY_NAME = 'Beverages';
+
+   /*==============================================================*/
+SELECT c.CUSTOMER_CODE
+FROM CUSTOMERS c
+JOIN ORDERS o ON c.CUSTOMER_CODE = o.CUSTOMER_CODE
+JOIN ORDER_DETAILS od ON o.ORDER_int = od.ORDER_int
+JOIN PRODUCTS p ON od.PRODUCT_REF = p.PRODUCT_REF
+JOIN CATEGORIES cat ON p.CATEGORY_CODE = cat.CATEGORY_CODE
+WHERE c.CITY = 'Berlin' AND cat.CATEGORY_NAME = 'Desserts'
+GROUP BY c.CUSTOMER_CODE
+HAVING SUM(od.QUANTITY) <= 1;
+
+   /*==============================================================*/
+SELECT 
+    c.CUSTOMER_CODE AS CustomerNumber,
+    c.COMPANY AS CompanyName,
+    c.PHONE AS PhoneNumber,
+    c.COUNTRY AS Country,
+    COALESCE(SUM(od.QUANTITY * od.UNIT_PRICE), 0) AS TotalAmount
+FROM CUSTOMERS c
+LEFT JOIN ORDERS o 
+    ON c.CUSTOMER_CODE = o.CUSTOMER_CODE
+LEFT JOIN ORDER_DETAILS od 
+    ON o.ORDER_int = od.ORDER_int
+WHERE c.COUNTRY = 'France'
+GROUP BY c.CUSTOMER_CODE, c.COMPANY, c.PHONE, c.COUNTRY
+ORDER BY c.CUSTOMER_CODE;
+   /*==============================================================*/
+SELECT c.CUSTOMER_CODE,
+       c.COMPANY,
+       c.PHONE
+FROM CUSTOMERS c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM PRODUCTS p
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM ORDERS o
+        JOIN ORDER_DETAILS od ON o.ORDER_int = od.ORDER_int
+        WHERE o.CUSTOMER_CODE = c.CUSTOMER_CODE
+          AND od.PRODUCT_REF = p.PRODUCT_REF
+    )
+)
+ORDER BY c.CUSTOMER_CODE;
+
+   /*==============================================================*/
+SELECT 
+    c.CUSTOMER_CODE,
+    COUNT(o.ORDER_int) AS NumberOfOrders
+FROM CUSTOMERS c
+LEFT JOIN ORDERS o 
+    ON c.CUSTOMER_CODE = o.CUSTOMER_CODE
+WHERE c.COUNTRY = 'France'
+GROUP BY c.CUSTOMER_CODE
+ORDER BY c.CUSTOMER_CODE;
+   /*==============================================================*/
+SELECT 
+    SUM(CASE WHEN YEAR(ORDER_DATE) = 1996 THEN 1 ELSE 0 END) AS OrdersIn1996,
+    SUM(CASE WHEN YEAR(ORDER_DATE) = 1997 THEN 1 ELSE 0 END) AS OrdersIn1997,
+    SUM(CASE WHEN YEAR(ORDER_DATE) = 1997 THEN 1 ELSE 0 END) -
+    SUM(CASE WHEN YEAR(ORDER_DATE) = 1996 THEN 1 ELSE 0 END) AS Difference
+FROM ORDERS;
